@@ -1,0 +1,4 @@
+# $find . -size +50M | cat >> .gitignore
+
+
+./ENGHo - Gastos por tipo de negocio y forma de pago.txt
