@@ -1,0 +1,14 @@
+
+OBSERVACIONES
+
+A partir del 3° trimestre de 2006 se incorporaron a la EPH continua tres aglomerados (San Nicolás-Villa Constitución, Viedma-Carmen de Patagones y Rawson-Trelew), que venían relevándose en la modalidad de EPH puntual, por lo cual el total de aglomerados relevados pasó a ser 31.
+
+En el 3° trimestre de 2006 se amplió la muestra de hogares de la EPH en los aglomerados de menos de 500 mil habitantes. Esto permitió dar estimaciones trimestrales de las tasas del mercado laboral para todos los aglomerados (ver comunicados de la EPH, Serie Histórica).
+
+El Instituto Nacional de Estadística y Censos (INDEC) pone en vigencia, a partir del 1º trimestre de 2011, la clasificación de Actividades Económicas para encuestas del MERCOSUR 1.0 (CAES 1.0) basada en la CIIU Revisión 4 de las Naciones Unidas.
+
+A partir del  3º trimestre de 2011 se releva la variable pp09b para el aglomerado Viedma-Carmen de Patagones. 
+
+A partir del 1º trimestre de 2012 la codificación de la actividad ecónomica se realiza mediante el Clasificador de Actividades Económicas para Encuestas del MERCOSUR 1.0 (CAES 1.0) basada en la CIIU Revisión 4 de las Naciones Unidas.
+
+A partir del 3º trimestre de 2013, los códigos 51 y 71 correspondientes a los casos especiales de la variable "Número de componente" (componente) pasan a la variable "Número de hogar", eliminándose esos códigos de la variable componente.
