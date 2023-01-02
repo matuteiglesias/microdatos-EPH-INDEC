@@ -1,93 +1,148 @@
-import os
-import urllib.request as request
-from zipfile import ZipFile
+#!/usr/bin/env python
+# coding: utf-8
 
-import sys
+# In[1]:
+
+
+### FECHAS DE ACTUALIZACION DE MICRODATOS
+
+## 2021Q3: 12-02-2022 (135 days)
+
+## 2021Q4: 14-05-2022 (134 days)
+
+## 2022Q1: 05-08-2022 (127 days)
+
+## 2022Q2: 05-11-2022 (127 days)
+
+
+# In[6]:
+
+
+
+from itertools import product
+from pathlib import Path
+import zipfile
 import requests
 
-
-def unzip(source_filename, dest_dir):
-    with ZipFile(source_filename) as zf:
-        zf.extractall(dest_dir)
-        
-        
-from pathlib import Path
-
-current_files = []
-working_dir = Path()
-for path in working_dir.glob("**/*.txt"):
-    # filenames
-    current_files += [path.stem]
-    
-import datetime
-now = datetime.datetime.now()
+import urllib
+import os
+import shutil
 
 
-# Obtaining the data from the URL's
+# In[3]:
+
+
+from datetime import datetime, timedelta
+
+def generate_quarter_list(num_quarters):
+    current_year = datetime.now().year
+    current_quarter = (datetime.now().month - 1) // 3 + 1
+    quarter_list = [(current_year, current_quarter)]
+    while len(quarter_list) < num_quarters:
+        current_quarter -= 1
+        if current_quarter == 0:
+            current_year -= 1
+            current_quarter = 4
+        quarter_list.append((current_year, current_quarter))
+    return quarter_list
+
+# Example usage
+print(generate_quarter_list(5))
+
+
+# In[4]:
+
+
+
+# Obtain the data from the URLs
 url_front = 'https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/'
+extract_dir = Path('microdatos')
 
-## Carpeta donde quedaran los datos
-extract_dir = 'microdatos/'
+# Generate a list of file names to download
+file_names = [f"EPH_usu_{Q}_Trim_{y}_txt.zip" for y, Q in generate_quarter_list(5)]
+file_names
 
-for y in range(now.year - 1, now.year + 1):
-    for Q in range(1, 5):
-        file_name = 'EPH_usu_'+str(Q)+'_Trim_'+str(y)+'_txt.zip' # Funciona de 2017 en adelante
-        full_file = os.path.join(os.getcwd(), extract_dir, file_name)
-        print(full_file)
 
-        response = requests.head(url_front + file_name, allow_redirects=True)
-        size = response.headers.get('content-length', -1)
-        size_MB = int(size) / float(1 << 20)
-        
-        ## Verificar tamano de la respuesta. Si no es pesada es porque el archivo no esta subido
-        print(file_name)
-        print('\t{:<40}: {:.2f} MB'.format('FILE SIZE', size_MB))
+# In[18]:
 
-        # Descargar el rar
-        if size_MB > 0.5: # Si el archivo esta subido
-            if not os.path.isfile(full_file): # si aun no existe.
-                # Si no esta el directorio lo crea
-                if not os.path.exists(extract_dir):
-                    os.makedirs(extract_dir)
 
-                # Toma data del URL
-                request.urlretrieve(url_front + file_name, full_file)
 
-                # Archive(full_file).extractall(extract_dir)
-                with ZipFile(full_file, 'r') as zipObj:
-                   # Get list of files names in zip
-                    listOfiles = zipObj.namelist()
-                
-                new_files = [Path(file).stem.lower() for file in listOfiles]
-                new_files = [file for file in new_files if 'eph' not in file]  # Exclude 'folder' file
-                print(new_files)
-                
-                if all(item in current_files for item in new_files): # If files already present
-                    print('A')
-                    os.remove(full_file) # Remove the zip
-                else: 
-                    print('B')
-                    unzip(full_file, extract_dir) # Extract
-                    
-                    ## Move extracted files to their place, and apply lowercase.
-#                     extracted_folder = extract_dir + Path(full_file).stem
-                    extracted_folder = extract_dir #+ Path(full_file).stem ## Desde 2do T 21 empezaron a guardar archivos sueltos
+# Download and extract the files
+for file_name in file_names:
+    full_file = extract_dir / file_name
+    print(full_file)
+
+    # Open the file and retrieve its size
+    with urllib.request.urlopen(url_front + file_name) as response:
+        size = int(response.info().get('Content-Length', -1))
+        size_MB = size / float(1 << 20)
     
-                    for file in os.listdir(extracted_folder):
-                        if '.txt' in file:
-                            print(file)
-                            current_file_name = '/'.join([extracted_folder, file])
-                            if 'hogar' in file:
-                                dest_dir = extract_dir + '/hogar/'
-                            elif 'indiv' in file:
-                                dest_dir = extract_dir + '/individual/'
+    # Check the size of the response. If it is not large, it means the file is not uploaded
+    print(file_name)
+    print('\t{:<40}: {:.2f} MB'.format('FILE SIZE', size_MB))
 
-                            new_name = Path(current_file_name).stem.lower() + '.txt'
-                            os.rename(current_file_name, os.path.join(dest_dir, new_name))
-                            
-#                             print('will remove:' +extracted_folder)
-                            # print('will remove:' +full_file)
+    # Download the zip file
+    if size_MB > 0.5:  # If the file is uploaded
+        if not full_file.is_file():  # If it doesn't already exist
+            # Download the file from the URL
+            response = requests.get(url_front + file_name)
+            open(full_file, 'wb').write(response.content)
 
-#                             # os.rmdir(extracted_folder) # remove folder ## Desde 2do T 21 empezaron a guardar archivos sueltos
-                            # os.remove(full_file) # Remove the zip
+            # Open the zip file
+            with zipfile.ZipFile(full_file, 'r') as zip_obj:
+                # Extract the files to the extract_dir directory
+                zip_obj.extractall(extract_dir)
+                
+                # Get a list of the extracted file names
+                ext_file_names = zip_obj.namelist()
+                
+                for txt in ext_file_names:
+                    # For each of the files (exclude extracted directories)
+                    extracted_txt = extract_dir.joinpath(txt)
+                    if os.path.isfile(extracted_txt):
+                        
+                        ## Fix buggy file names
+                        if Path(txt).name.endswith('.txt.txt'):
+                            name, ext = os.path.splitext(txt) # split the last .txt from the name
+                        else:
+                            name = txt # it's ok
+
+                        ## Send extracted txt files to their respective folder 
+                        
+                        if 'hogar' in txt:
+                            dest_subdir = extract_dir.joinpath('hogar')
+                        elif 'indiv' in txt:
+                            dest_subdir = extract_dir.joinpath('individual')
+
+                        shutil.move(extracted_txt, dest_subdir.joinpath(Path(name).name.lower()))
+
+
+# In[19]:
+
+
+### Clean by removing all empty folders which are not needed anymore
+
+# Use the `listdir()` function to get a list of all the subdirectories in the parent directory
+parent_dir = './microdatos/'
+subdirs = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir, d))]
+
+# Iterate over the subdirectories and check if they are empty
+empty_subdirs = []
+for subdir in subdirs:
+    subdir_path = os.path.join(parent_dir, subdir)
+    if not os.listdir(subdir_path):  # The directory is empty if `os.listdir()` returns an empty list
+        empty_subdirs.append(subdir_path)
+        
+        
+for dir_ in empty_subdirs: os.rmdir(dir_)
+
+
+# In[20]:
+
+
+# # Ejemplo pagina de data que no fue subida
+# 'https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/EPH_usu_3_Trim_2023_txt.zip'
+
+
+
 
