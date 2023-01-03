@@ -21,8 +21,7 @@ El notebook "extract_dbf_files.ipynb" se utiliza para descargar series históric
 clonar repositorio para tener los microdatos en tu PC.
 
 `git clone https://github.com/matuteiglesias/microdatos-EPH-INDEC.git`
-
-    *   Requisitos previos y dependencias
+###   Requisitos previos y dependencias
 
 Instalar librerias con pip. I.e. en una terminal, o en una interfaz de python:
 
