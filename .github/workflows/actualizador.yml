@@ -1,0 +1,24 @@
+name: Actualizador de Microdatos
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # Ejecuta a las 8:00 AM UTC todos los días
+  workflow_dispatch:
+
+jobs:
+  actualizar-datos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configurar Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+      - name: Ejecutar el script de actualización
+        run: python ./actualizador.py
+      - name: Limpiar directorios vacíos
+        run: find ./microdatos -type d -empty -delete
