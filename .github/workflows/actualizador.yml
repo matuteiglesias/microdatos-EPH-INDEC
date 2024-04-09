@@ -19,6 +19,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
       - name: Ejecutar el script de actualización
-        run: python ./path/to/your/actualizador.py
+        run: python ./actualizador.py
       - name: Limpiar directorios vacíos
         run: find ./microdatos -type d -empty -delete
