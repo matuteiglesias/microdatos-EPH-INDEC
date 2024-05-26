@@ -31,6 +31,49 @@ Instalar librerias con pip. I.e. en una terminal, o en una interfaz de python:
 
 etc...
 
+**Para acceder a los microdatos**
+
+Python:
+
+```python
+import pandas as pd
+import requests
+
+# Define the URL for the data file
+url = 'https://raw.githubusercontent.com/matuteiglesias/microdatos-EPH-INDEC/master/microdatos/individual/usu_individual_t104.txt'
+
+# Download the data file
+response = requests.get(url)
+if response.status_code == 200:
+    data = response.content.decode('utf-8')
+    # Convert the data to a DataFrame
+    df = pd.read_csv(pd.compat.StringIO(data), delimiter=';')
+    print(df.head())
+else:
+    print(f"File not found: {url}")
+```
+
+R:
+
+```R
+library(httr)
+library(readr)
+
+# Define the URL for the data file
+url <- 'https://raw.githubusercontent.com/matuteiglesias/microdatos-EPH-INDEC/master/microdatos/individual/usu_individual_t104.txt'
+
+# Download the data file
+response <- GET(url)
+if (status_code(response) == 200) {
+    data <- content(response, "text")
+    # Convert the data to a DataFrame
+    df <- read_delim(data, delim = ";")
+    print(head(df))
+} else {
+    print(paste("File not found:", url))
+}
+```
+
 **Para utilizar el script `actualizador.py`**
 
 `python actualizador.py`
