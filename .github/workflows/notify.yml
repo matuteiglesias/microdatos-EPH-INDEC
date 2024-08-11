@@ -19,6 +19,6 @@ jobs:
         run: |
           curl -X POST \
             -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.gh-auth-token  }}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOkEN  }}" \
             https://api.github.com/repos/matuteiglesias/encuestador-de-hogares/dispatches \
             -d '{"event_type":"models-updated"}'
