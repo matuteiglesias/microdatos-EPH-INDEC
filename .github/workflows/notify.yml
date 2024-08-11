@@ -1,12 +1,15 @@
 name: Notify Atlas Update
 
 on:
+  workflow_dispatch:  # Permite ejecución manual
   push:
     branches:
       - main
     paths:
       - 'microdatos/**'
 
+
+    
 jobs:
   notify-atlas:
     runs-on: ubuntu-latest
