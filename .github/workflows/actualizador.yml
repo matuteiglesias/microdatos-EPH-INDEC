@@ -22,3 +22,14 @@ jobs:
         run: python ./actualizador.py
       - name: Limpiar directorios vacíos
         run: find ./microdatos -type d -empty -delete
+
+
+      - name: Send repository dispatch event to encuestador-de-hogares
+        if: success()  # Only trigger if the update was successful
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/matuteiglesias/encuestador-de-hogares/dispatches \
+            -d '{"event_type":"microdata-updated"}'
+
