@@ -16,6 +16,13 @@ El script principal "actualizador.py" tiene como objetivo descargar, descomprimi
 
 El notebook "extract_dbf_files.ipynb" se utiliza para descargar series históricas de la EPH. Este cuaderno contiene códigos para descargar y procesar archivos DBF de la EPH de años anteriores, y generar archivos CSV a partir de ellos. Los archivos DBF son un formato antiguo de base de datos, y este cuaderno muestra cómo convertirlos a un formato más moderno y utilizable.
 
+Aproximadamente los datos se actualizan en fechas:
+
+   - Q1: 05 Aug (120 dias)
+   - Q2: 05 Nov (120 dias)
+   - Q3: 10 Feb del siguiente (135 dias)
+   - Q4: 15 May del siguiente (135 dias)
+
 ###  Instalación y uso
 
 clonar repositorio para tener los microdatos en tu PC.
@@ -91,12 +98,7 @@ Gracias a esto, **no necesita correr los scripts de python, el git clone por si 
 <!-- Description of the data -->
 <!-- se podria agregar un cosito que diga cuando se subio el ultimo dataset... -->
 
-Las ultimas actualizaciones se dieron en fechas:
 
-   - 2021Q3: 12-02-2022 (135 dias)
-   - 2021Q4: 14-05-2022 (134 dias)
-   - 2022Q1: 05-08-2022 (127 dias)
-   - 2022Q2: 05-11-2022 (122 dias)
    
 ###  Fuentes y citas
 **Enlace a la página del INDEC donde se encuentran los datos originales**
