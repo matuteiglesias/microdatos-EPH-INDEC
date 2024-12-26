@@ -1,0 +1,35 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/matias/repos/microdatos-EPH-INDEC/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+Actualizaciones Automaticas:	README.md	/^### Actualizaciones Automaticas:$/;"	S	section:Microdatos de la Encuesta Permanente de Hogares INDEC
+Fuentes y citas	README.md	/^###  Fuentes y citas$/;"	S	section:Microdatos de la Encuesta Permanente de Hogares INDEC
+Instalación y uso	README.md	/^###  Instalación y uso$/;"	S	section:Microdatos de la Encuesta Permanente de Hogares INDEC
+Introducción	README.md	/^### Introducción$/;"	S	section:Microdatos de la Encuesta Permanente de Hogares INDEC
+Microdatos de la Encuesta Permanente de Hogares INDEC	README.md	/^## Microdatos de la Encuesta Permanente de Hogares INDEC$/;"	s
+Requisitos previos y dependencias	README.md	/^###   Requisitos previos y dependencias$/;"	S	section:Microdatos de la Encuesta Permanente de Hogares INDEC
+dest_subdir	actualizador.py	/^                            dest_subdir = extract_dir.joinpath('hogar')$/;"	v
+dest_subdir	actualizador.py	/^                            dest_subdir = extract_dir.joinpath('individual')$/;"	v
+empty_subdirs	actualizador.py	/^empty_subdirs = []$/;"	v
+ext	actualizador.py	/^                            name, ext = os.path.splitext(txt) # split the last .txt from the nam/;"	v
+ext_file_names	actualizador.py	/^                ext_file_names = zip_obj.namelist()$/;"	v
+extract_dir	actualizador.py	/^extract_dir = Path('microdatos')$/;"	v
+extracted_txt	actualizador.py	/^                    extracted_txt = extract_dir.joinpath(txt)$/;"	v
+file_names	actualizador.py	/^file_names = [f"EPH_usu_{Q}_Trim_{y}_txt.zip" for y, Q in generate_quarter_list(5)]$/;"	v
+full_file	actualizador.py	/^    full_file = extract_dir \/ file_name$/;"	v
+generate_quarter_list	actualizador.py	/^def generate_quarter_list(num_quarters):$/;"	f
+name	actualizador.py	/^                            name, ext = os.path.splitext(txt) # split the last .txt from the nam/;"	v
+parent_dir	actualizador.py	/^parent_dir = '.\/microdatos\/'$/;"	v
+response	actualizador.py	/^            response = requests.get(url_front + file_name)$/;"	v
+size	actualizador.py	/^        size = int(response.info().get('Content-Length', -1))$/;"	v
+size_MB	actualizador.py	/^        size_MB = size \/ float(1 << 20)$/;"	v
+subdir_path	actualizador.py	/^    subdir_path = os.path.join(parent_dir, subdir)$/;"	v
+subdirs	actualizador.py	/^subdirs = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir, d))]$/;"	v
+url_front	actualizador.py	/^url_front = 'https:\/\/www.indec.gob.ar\/ftp\/cuadros\/menusuperior\/eph\/'$/;"	v
