@@ -1,0 +1,10 @@
+# settings.yaml
+
+# URL base para descargar los ZIP de microdatos EPH desde el FTP de INDEC
+ftp_url: "https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/"
+
+# Directorio por defecto donde se colocan los archivos descargados y extraídos
+default_output_dir: "/data/eph/raw"
+
+# Carpeta por defecto que contiene los esquemas JSON y otros recursos de validación
+default_schema_dir: "schemas"
