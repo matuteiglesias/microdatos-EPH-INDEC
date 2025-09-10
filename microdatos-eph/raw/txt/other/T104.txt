@@ -1,0 +1,14 @@
+
+OBSERVACIONES
+
+En el 3° trimestre de 2006 se amplió la muestra de hogares de la EPH en los aglomerados de menos de 500 mil habitantes y se incorporaron estimaciones trimestrales para los mismos así como su correspondiente identificación en las bases usuarias. Esto permitió a los investigadores realizar análisis considerando todos los ámbitos geográficos relevados y, en especial, dar estimaciones trimestrales de las tasas del mercado laboral para todos los aglomerados (Ver comunicados de la EPH, Serie Histórica).
+
+En esta nueva serie de microdatos la EPH incluye la identificación de aglomerado, aún en aquellas bases anteriores al tercer trimestre de 2006. De esta manera los usuarios cuentan con más elementos para realizar variados análisis. 
+
+Se debe tener presente, sin embargo, que un tamaño de muestra de 400 o 600 viviendas puede resultar insuficiente para el cálculo de algunas estimaciones, no sólo en subpoblaciones – e.g. tasa de desempleo de varones, total de desocupadas mujeres – sino también a nivel general.
+
+Se recomienda entonces:
+
+       	-Consultar las tablas de errores de muestreo, publicadas en el sitio de la EPH para dimensionar el error muestral asociado a la estimación que se analice. 
+	-Realizar análisis de tendencias.
+	-Utilizar la base general o agrupamientos de aglomerados a fin de incrementar el número de casos muestrales. Tener en cuenta que la determinación del número mínimo de casos muestrales válido para el cálculo de estimaciones dependerá del tipo de análisis particular realizado.
