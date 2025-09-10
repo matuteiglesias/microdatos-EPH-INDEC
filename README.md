@@ -1,110 +1,149 @@
 
-## Microdatos de la Encuesta Permanente de Hogares INDEC
+# microdatos-EPH-INDEC
 
-### Introducción
+![Python](https://img.shields.io/badge/python-3.7%2B-blue) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 
-Welcome to the INDEC EPH microdata repository! Here you will find the individual and household microdata from the Encuesta Permanente de Hogares (EPH) survey conducted by INDEC, the National Institute of Statistics and Census of Argentina. The EPH is a quarterly household survey that provides information on various topics such as employment, education, and living conditions. If you use these data in your research or analysis, please be sure to cite the INDEC website (www.indec.gob.ar) as the primary source of the data. In addition to the microdata, this repository also includes a notebook with code for downloading historical data in dbf format, as well as new data releases. 
+Con **microdatos-EPH-INDEC** tenes las **bases de datos EPH** listas para análisis en un par de segundos.
 
-Thank you for visiting and we hope these data are useful to you!
+
+## Descripción
+
+**microdatos-EPH-INDEC** es una **herramienta de línea de comandos (CLI)** en Python para **descargar**, **extraer** y **convertir** los **microdatos de la Encuesta Permanente de Hogares (EPH)** del **INDEC** en formatos **TXT/CSV**. Automatiza todo el flujo: desde los ZIP/RAR trimestrales en DBF hasta tus datasets listos para análisis (`hogar`, `individual`, `other`).
+
+> 🚀 **Beneficios**:  
+> - Descarga instantanea de **microdatos EPH INDEC** (2003–presente)  
+> - Conversión de **DBF a CSV/TXT** con separación `;`  
+> - Organización automática en carpetas: `hogar/`, `individual/`, `other/`  
+> - Limpieza de archivos residuales (ZIP, RAR, backups, carpetas vacías)  
+> - Fallbacks robustos para formatos legacy e inconsistencias en nombres de archivos
 
 ---
 
-La EPH es una encuesta de hogares que se realiza trimestralmente y permite obtener información sobre la estructura y el funcionamiento de los hogares, las características de las personas que los integran y sus actividades económicas.
+## Público objetivo
 
-El script principal "actualizador.py" tiene como objetivo descargar, descomprimir y organizar los datos de la Encuesta Permanente de Hogares (EPH) del INDEC. Este script descarga los archivos ZIP de la EPH desde el sitio web del INDEC, los descomprime y organiza los archivos descomprimidos en las carpetas "individual" y "hogar", según corresponda.
+- **Investigadores** (economía, sociología, demografía)  
+- **Analistas de datos** que necesitan **datasets EPH** reproducibles  
+- **Estudiantes** y **profesionales** que trabajan con series de empleo, pobreza e ingresos  
 
-El notebook "extract_dbf_files.ipynb" se utiliza para descargar series históricas de la EPH. Este cuaderno contiene códigos para descargar y procesar archivos DBF de la EPH de años anteriores, y generar archivos CSV a partir de ellos. Los archivos DBF son un formato antiguo de base de datos, y este cuaderno muestra cómo convertirlos a un formato más moderno y utilizable.
+---
 
-Aproximadamente los datos se actualizan en fechas:
+## Características
 
-   - Q1: 05 Aug (120 dias)
-   - Q2: 05 Nov (120 dias)
-   - Q3: 10 Feb del siguiente (135 dias)
-   - Q4: 15 May del siguiente (135 dias)
+- `fetch-range`: descarga **microdatos EPH** por rango de años y trimestres  
+- `fetch`: baja un trimestre específico  
+- `extract`: convierte todos los `.zip` y `.rar` a `.dbf`, y estos a `.txt/.csv`.  
+- Soporte de convenciones modernas e irre­gulares (2016–2017)  
+- Normalización de nombres (`usu_hogar`, `usu_individual`)  
+- Manejo de **DBF**, **ZIP**, **RAR** (patoolib)  
+- Backup automático de `.dbf` procesados  
+- Manejo de **nombres de archivos inesperados** y **fallos de escapechar**  
 
-###  Instalación y uso
+---
 
-clonar repositorio para tener los microdatos en tu PC.
+## Instalación
 
-`git clone https://github.com/matuteiglesias/microdatos-EPH-INDEC.git`
-###   Requisitos previos y dependencias
+1. Clona el repositorio y entra en él:
+   ```bash
+   git clone https://github.com/tu-usuario/microdatos-EPH-INDEC.git
+   cd microdatos-EPH-INDEC
+    ```
 
-Instalar librerias con pip. I.e. en una terminal, o en una interfaz de python:
+2. Crea un entorno virtual e instala:
 
-`pip install requests` 
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install .
+   ```
+3. (Opcional) Instala extras:
 
-`pip install zipfile` 
+   ```bash
+   pip install patool    # Para RAR
+   pip install simpledbf # Fallback Latin-1
+   pip install pysal     # Lectura DBF nativa
+   ```
 
-etc...
+---
 
-**Para acceder a los microdatos**
+## Configuración
 
-Python:
+En el archivo `eph_extractor/settings.yaml` se apunta al FTP del INDEC:
 
-```python
-import pandas as pd
-import requests
-
-# Define the URL for the data file
-url = 'https://raw.githubusercontent.com/matuteiglesias/microdatos-EPH-INDEC/master/microdatos/individual/usu_individual_t104.txt'
-
-# Download the data file
-response = requests.get(url)
-if response.status_code == 200:
-    data = response.content.decode('utf-8')
-    # Convert the data to a DataFrame
-    df = pd.read_csv(pd.compat.StringIO(data), delimiter=';')
-    print(df.head())
-else:
-    print(f"File not found: {url}")
+```yaml
+ftp_url: "https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/"
 ```
 
-R:
+---
 
-```R
-library(httr)
-library(readr)
+## Uso
 
-# Define the URL for the data file
-url <- 'https://raw.githubusercontent.com/matuteiglesias/microdatos-EPH-INDEC/master/microdatos/individual/usu_individual_t104.txt'
+Situate en la carpeta donde quieras tener los microdatos, por ejemplo:
 
-# Download the data file
-response <- GET(url)
-if (status_code(response) == 200) {
-    data <- content(response, "text")
-    # Convert the data to a DataFrame
-    df <- read_delim(data, delim = ";")
-    print(head(df))
-} else {
-    print(paste("File not found:", url))
-}
+```bash
+mkdir microdatos-eph
+cd microdatos-eph
 ```
 
-**Para utilizar el script `actualizador.py`**
+Opcionalmente, para remover residuos de pruebas previas:
 
-`python actualizador.py`
- 
-Por default descarga los ultimos 5 trimestres disponibles.
+```bash
+rm -rf raw/eph
+```
 
+### 1) Descargar microdatos (DBF/ZIP)
 
-### Actualizaciones Automaticas:
+```bash
+# Todos los trimestres de 2003 a 2025 en raw/dbf/
+eph-extractor fetch-range \
+  --start-year 2003 \
+  --end-year   2025 \
+  --out        raw/eph
+```
 
-El codigo en actualizador.py se corre todos los dias localmente, y asi se incorporan nuevos datos publicados por INDEC en un plazo de menos de 24 hs. Por lo general, los microdatos se publican cerca de 130 dias despues de terminado cada trimestre.
+### 2) Extraer y convertir a TXT/CSV
 
-Gracias a esto, **no necesita correr los scripts de python, el git clone por si solo ya contiene todos los microdatos que hayan sido publicados desde 2003.**
+```bash
+# Convierte .dbf → .txt (sep=";") y organiza en raw/txt/
+eph-extractor extract \
+  --dir raw/eph \
+  --out raw/txt
+```
 
+### 3) Atajos
 
-<!-- Description of the data -->
-<!-- se podria agregar un cosito que diga cuando se subio el ultimo dataset... -->
+* Solo un trimestre:
 
+  ```bash
+  eph-extractor fetch  --year 2024 --quarter Q3 --out raw/eph
+  eph-extractor extract --dir raw/eph       --out raw/txt
+  ```
+* Mantener ZIP/RAR con `--keep-zip`
 
-   
-###  Fuentes y citas
-**Enlace a la página del INDEC donde se encuentran los datos originales**
+---
 
-Cualquier publicación basada en los archivos de microdatos de la EPH debe citar a INDEC como la fuente primaria de los datos. Link a los [datos originales, 2016-2022](https://www.indec.gob.ar/indec/web/Institucional-Indec-BasesDeDatos)
-    
- **Citar solucion de sotware si te resulto de ayuda:**
+## Estructura de salida
 
-Iglesias, M. (Fecha de acceso). Microdatos EPH INDEC. Recuperado de https://github.com/matuteiglesias/microdatos-EPH-INDEC.
+```
+raw/
+└── eph/
+    ├── hogar/        # usu_hogar_t*.txt
+    ├── individual/   # usu_individual_t*.txt
+    └── other/        # notas, PDF, etc.
+```
+
+Todos los `.dbf` procesados van a `raw/dbf/dbf_backup/`.
+
+---
+
+## Palabras clave
+
+> **microdatos EPH INDEC** • **Descarga EPH trimestral** • **CLI Python EPH** • **DBF a CSV** • **Datos ENCUESTA PERMANENTE DE HOGARES** • **Bases de datos EPH txt** • **microdatos hogar individual** • **INDEC microdatos** • **Series longitudinales EPH**
+
+---
+
+## Soporte y Contribución
+
+1. **Issues**: abri un ticket si encuentras errores o sugerencias.
+2. **Pull requests**: mejoras de funcionalidades, nuevos formatos, tests.
+3. **Licencia**: MIT.
