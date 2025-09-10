@@ -136,6 +136,17 @@ Todos los `.dbf` procesados van a `raw/dbf/dbf_backup/`.
 
 ---
 
+## Datos nuevos
+
+**Los datos se actualizan dentro de las 24 hs posteriores a la publicacion de nuevos datos por parte de INDEC:**
+
+   - Q1: 05 Aug (120 dias)
+   - Q2: 05 Nov (120 dias)
+   - Q3: 10 Feb del año siguiente (135 dias)
+   - Q4: 15 May del año siguiente (135 dias)
+
+---
+
 ## Palabras clave
 
 > **microdatos EPH INDEC** • **Descarga EPH trimestral** • **CLI Python EPH** • **DBF a CSV** • **Datos ENCUESTA PERMANENTE DE HOGARES** • **Bases de datos EPH txt** • **microdatos hogar individual** • **INDEC microdatos** • **Series longitudinales EPH**
