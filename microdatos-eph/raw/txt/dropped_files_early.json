@@ -1,0 +1,118 @@
+{
+  "hogar": [
+    {
+      "file": "hogar/hogar_t112.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "hogar/hogar_t113.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "hogar/Hogar_t114.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "hogar/Hogar_t115.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "hogar/hogar_t212.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "hogar/hogar_t213.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "hogar/hogar_t214.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "hogar/Hogar_t215.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "hogar/hogar_t312.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "hogar/hogar_t313.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "hogar/Hogar_t314.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "hogar/hogar_t412.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "hogar/Hogar_t413.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "hogar/Hogar_t414.txt",
+      "reason": "blacklisted"
+    }
+  ],
+  "individual": [
+    {
+      "file": "individual/individual_t112.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "individual/individual_t113.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "individual/Individual_t114.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "individual/Individual_t115.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "individual/individual_t212.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "individual/individual_t213.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "individual/individual_t214.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "individual/Individual_t215.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "individual/individual_t312.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "individual/individual_t313.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "individual/Individual_t314.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "individual/individual_t412.txt",
+      "reason": "bad characters in tokens"
+    },
+    {
+      "file": "individual/Individual_t413.txt",
+      "reason": "blacklisted"
+    },
+    {
+      "file": "individual/Individual_t414.txt",
+      "reason": "blacklisted"
+    }
+  ]
+}

@@ -11,3 +11,30 @@ __pycache__/
 *.zip
 *.rar
 *.dbf
+# accidental nested git repos / cleanup artifacts
+clean-repo.git/
+*.pack
+*.idx
+
+# local EPH/raw data outputs
+microdatos-eph/raw/
+microdatos-eph/processed/
+
+# accidental nested git repos / cleanup artifacts
+clean-repo.git/
+*.pack
+*.idx
+
+# local EPH/raw data outputs
+microdatos-eph/raw/
+microdatos-eph/processed/
+
+# Local logs / generated artifacts
+logs/
+microdatos-eph/raw/txt/training/
+microdatos-eph/raw/txt_2025_debug/
+
+# Accidental nested git repos / git internals
+clean-repo.git/
+*.pack
+*.idx
