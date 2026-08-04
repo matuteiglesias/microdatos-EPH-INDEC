@@ -38,3 +38,14 @@ microdatos-eph/raw/txt_2025_debug/
 clean-repo.git/
 *.pack
 *.idx
+
+# EPH archives, converted tables, releases, and atomic staging
+*.csv
+*.parquet
+*.tmp
+.eph-*/
+data/
+releases/
+*.egg-info/
+build/
+dist/

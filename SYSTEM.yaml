@@ -1,4 +1,3 @@
-# This file declares the repository boundary and its place in the GitHub estate.
 schema_version: 1
 id: publicdata.eph.acquire
 repository:
@@ -9,32 +8,29 @@ system: publicdata.eph
 role: eph-acquisition-producer
 lifecycle: active
 authority:
-  status: proposed
+  status: proven-local
   owns:
   - upstream EPH microdata acquisition and raw-format conversion
   - versioned acquisition outputs and source provenance
   does_not_own:
-  - derived harmonization
-  - modeling targets and features
-  - poverty estimates
+  - analytical merging, feature engineering, deflation, targets, or models
 interfaces:
   consumes: []
   produces:
   - artifact:publicdata.eph-microdata@1
-upstream: []
-downstream:
-- repo.eph-censo-aligner
-- repo.income-modeling-eph
-- repo.indice-pobreza-uba
-canonical_commands: []
+canonical_commands:
+- make install
+- make check
+- make smoke
+- make probe YEAR=2024 QUARTER=Q3 OUT_DIR=/tmp/eph-probe
 generated_paths:
-- data/
+- external output root/eph-YEAR-qN-SOURCEHASH/
 verification:
-  status: metadata-only
+  status: offline-proven
   last_verified: '2026-08-04'
-  command: null
+  command: make check && make smoke
   unknowns:
-  - canonical acquisition command and data storage policy require local confirmation
+  - historical RAR and uncommon DBF variants are unsupported
 maintenance:
   cadence: quarterly
   next_review: '2026-11-01'

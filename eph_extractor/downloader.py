@@ -1,207 +1,142 @@
-# downloader.py
-from datetime import datetime
+"""Fail-closed, bounded EPH discovery and retrieval with source provenance."""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+import json
+import os
 from pathlib import Path
-import requests
-import urllib
-import zipfile
-import shutil
-from eph_extractor.config import load_config
+import re
+import subprocess
+import tempfile
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
+
+from .config import load_config
+from .extractor import sha256
+
+USER_AGENT = "eph-extractor/1"
+MAX_SOURCE_BYTES = 512 * 1024 * 1024
 
 
-
-def list_available_quarters(n: int) -> list:
-    """Genera una lista de los últimos n trimestres como tuplas (year, quarter)"""
-    current = datetime.now()
-    year, month = current.year, current.month
-    quarter = (month - 1) // 3 + 1
-    quarters = []
-    for _ in range(n):
-        quarters.append((year, f"Q{quarter}"))
-        quarter -= 1
-        if quarter == 0:
-            year -= 1
-            quarter = 4
-    return quarters
-
-
-def download_quarter(year: int, quarter: str, dest: str) -> None:
-    """Descarga el ZIP/RAR del INDEC (moderno o legacy) y extrae su contenido en dest."""
-    cfg = load_config()
-    base_url = cfg.get('ftp_url')
-    dest_path = Path(dest)
-    dest_path.mkdir(parents=True, exist_ok=True)
-
-
-    # Construcción de posibles nombres de archivo en orden de prioridad
-    attempts = []
-    qnum = quarter[-1]
-    yy = str(year)[-2:]
-
-    # 0) very-early “EPH_usu” pattern w/o “_txt” suffix?
-    attempts.append(f"EPH_usu_{qnum}_Trim_{year}.zip")
-    attempts.append(f"EPH_usu_{qnum}_Trim_{year}.rar")
-
-    # 0b) uppercase DBF naming: “Hog_t” / “Ind_t”
-    attempts.append(f"Hog_t{qnum}{yy}.DBF")
-    attempts.append(f"Ind_t{qnum}{yy}.DBF")
-
-    attempts += [
-    f"Hog_t{qnum}{yy}.DBF",
-    f"Ind_t{qnum}{yy}.DBF",
-    f"t{qnum}{yy}.zip",     # no “_dbf” suffix
-    f"t{qnum}{yy}.rar",
-    ]
-
-
-
-# https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/EPH_usu_2doTrim_2016_txt.zip
-# https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/EPH_usu_3erTrim_2016_txt.zip
-# https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/EPH_usu_4toTrim_2016_txt.zip
-# https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/EPH_usu_1er_Trim_2017_txt.zip
-# https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/EPH_usu_2_Trim_2017_txt.zip
-# https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/EPH_usu_3_Trim_2017_txt.zip
-# https://www.indec.gob.ar/ftp/cuadros/menusuperior/eph/EPH_usu_4_Trim_2017_txt.zip
-
-    # 1) Convención moderna estandarizada
-    attempts.append(f"EPH_usu_{qnum}_Trim_{year}_txt.zip")
-
-    # 2) Casos irregulares 2016-2017 (ordinales en español)
+def candidate_names(year: int, quarter: str) -> list[str]:
+    """Return every known filename for a period; no ordering implies preference."""
+    q, yy = quarter[-1], str(year)[-2:]
+    names = [f"EPH_usu_{q}_Trim_{year}_txt.zip"]
     if year == 2016:
-        attempts += [
-            f"EPH_usu_{qnum}erTrim_{year}_txt.zip",
-            f"EPH_usu_{qnum}doTrim_{year}_txt.zip",
-            f"EPH_usu_{qnum}er_Trim_{year}_txt.zip",
-            f"EPH_usu_{qnum}toTrim_{year}_txt.zip"
-        ]
+        ordinal = {"1": "1er", "2": "2do", "3": "3er", "4": "4to"}[q]
+        names.append(f"EPH_usu_{ordinal}Trim_{year}_txt.zip")
+    if year == 2017:
+        names.append(f"EPH_usu_{'1er' if q == '1' else q}_Trim_{year}_txt.zip")
+    names.extend([f"t{q}{yy}_dbf.zip", f"EPH_usu_{q}_Trim_{year}.zip"])
+    return list(dict.fromkeys(names))
 
 
-    if year == 2017 and qnum == '1':
-        attempts.append(f"EPH_usu_1er_Trim_{year}_txt.zip")
-
-    # 3) Legado ZIP de DBF
-    attempts.append(f"t{qnum}{yy}_dbf.zip")
-
-    # 4) Legado RAR de DBF
-    attempts.append(f"t{qnum}{yy}_dbf.rar")
-
-    selected = None
-    size = 0
-    # Probar URLs hasta hallar uno válido
-    for fn in attempts:
-        trial = f"{base_url}{fn}"
-        print(f"INFO: Probando {trial}")
-        try:
-            with urllib.request.urlopen(trial) as resp:
-                size = int(resp.info().get('Content-Length', -1))
-        except Exception:
-            continue
-        if size < 100_000:  # <0.1MB es indicativo de no disponible
-            continue
-        selected = (fn, trial)
-        break
-
-    if not selected:
-        raise RuntimeError(f"No se encontró ZIP/RAR válido para {year}-{quarter}")
-
-    filename, url = selected
-
-    local_archive = dest_path / filename
-    url = base_url + filename
-
-    size_mb = size / (1 << 20)
-    print(f"INFO: Archivo seleccionado {filename} ({size_mb:.2f} MB)")
-
-    local_zip = dest_path / filename
-    # Descargar si no existe
-    if not local_zip.exists():
-        print(f"INFO: Descargando {filename}")
-        resp = requests.get(url)
-        resp.raise_for_status()
-        local_zip.write_bytes(resp.content)
-        print(f"INFO: Guardado en {local_zip}")
-    else:
-        print(f"INFO: {filename} ya existe, omitiendo descarga.")
-
-
-    normalized = fn.lower().replace('hog_','hogar_').replace('ind_','individual_')
-    local_archive.rename(dest_path / normalized)
-    filename = normalized
-
-    # ⚠️ ¡MUY IMPORTANTE! Actualizar la referencia al fichero renombrado
-    # para que try_zip()/try_rar() apunten al archivo correcto.
-    local_archive = dest_path / normalized
-
-    # 2) Intentar desempaquetar
-    members = []
-    def try_zip(path):
-        try:
-            print(f"INFO: Extrayendo ZIP {path.name}")
-            with zipfile.ZipFile(path, 'r') as zf:
-                zf.extractall(dest_path)
-                return zf.namelist()
-        except Exception as e:
-            raise RuntimeError(f"ZIP fallo: {e}")
-
-    def try_rar(path):
-        try:
-            from patoolib import extract_archive
-        except ImportError:
-            raise RuntimeError("patoolib no instalado")
-        try:
-            print(f"INFO: Extrayendo RAR {path.name}")
-            extract_archive(str(path), outdir=str(dest_path))
-            return [p.name for p in dest_path.iterdir() if p.is_file()]
-        except Exception as e:
-            raise RuntimeError(f"RAR fallo: {e}")
-
-    # Decide order
-    ext = local_archive.suffix.lower()
-    tried = set()
-
-    for method in (('zip', try_zip), ('rar', try_rar)):
-        kind, fn = method
-        if ext == f'.{kind}' or (ext not in ('.zip','.rar') and kind == 'zip'):
-            try:
-                members = fn(local_archive)
-                break
-            except RuntimeError as e:
-                print(f"WARNING: {e}")
-                tried.add(kind)
-
-
-
-    # —————————————————————————————————————
-    #  Extra handling for legacy DBFs dumped at the root
-    # —————————————————————————————————————
-    # make sure our subfolders exist
-    (dest_path / 'hogar').mkdir(exist_ok=True)
-    (dest_path / 'individual').mkdir(exist_ok=True)
-
-    # move any stray Hog_t*.DBF into hogar/
-    for stray in dest_path.glob('Hog_t*.DBF'):
-        target = dest_path / 'hogar' / stray.name
-        print(f"INFO: Normalizing stray DBF → moving {stray.name} into hogar/")
-        stray.rename(target)
-
-    # move any stray Ind_t*.DBF into individual/
-    for stray in dest_path.glob('Ind_t*.DBF'):
-        target = dest_path / 'individual' / stray.name
-        print(f"INFO: Normalizing stray DBF → moving {stray.name} into individual/")
-        stray.rename(target)
-
-
-    # Organizar en subcarpetas
-    for member in members:
-        src = dest_path / member
-        if not src.is_file():
-            continue
-        key = member.lower()
-        if 'hogar' in key:
-            sub = dest_path / 'hogar'
-        elif 'indiv' in key:
-            sub = dest_path / 'individual'
+def _probe(url: str) -> tuple[dict, object | None]:
+    record = {"url": url, "status": "rejected", "reason": None}
+    try:
+        response = urlopen(Request(url, method="HEAD", headers={"User-Agent": USER_AGENT}), timeout=60)
+        status = getattr(response, "status", 200)
+        length = response.headers.get("Content-Length")
+        response.close()
+        if status != 200:
+            record["reason"] = f"HTTP {status}"
+        elif length is not None and int(length) > MAX_SOURCE_BYTES:
+            record["reason"] = f"Content-Length exceeds {MAX_SOURCE_BYTES} bytes"
         else:
-            sub = dest_path / 'other'
-        sub.mkdir(exist_ok=True)
-        shutil.move(str(src), str(sub / Path(member).name))
-    print(f"INFO: Organización completa para {year}-{quarter}")
+            record.update(status="available", reason="HTTP HEAD 200", content_length=int(length) if length else None)
+    except HTTPError as exc:
+        record["reason"] = f"HTTP {exc.code}"
+        exc.close()
+    except URLError as exc:
+        record["reason"] = f"transport error: {exc.reason}"
+    return record
+
+
+def _validate_filename(name: str, year: int, quarter: str) -> None:
+    q = quarter[-1]
+    modern = re.fullmatch(rf"EPH_usu_(?:{q}|{q}(?:er|do|to))_?Trim_{year}(?:_txt)?\.zip", name, re.I)
+    legacy = re.fullmatch(rf"t{q}{str(year)[-2:]}_dbf\.zip", name, re.I)
+    if not (modern or legacy):
+        raise RuntimeError(f"selected filename does not identify {year}-{quarter}: {name}")
+
+
+def retrieve(year: int, quarter: str, destination: Path, base_url: str | None = None):
+    quarter = quarter.upper()
+    if quarter not in {"Q1", "Q2", "Q3", "Q4"}:
+        raise ValueError("quarter must be Q1, Q2, Q3, or Q4")
+    base_url = (base_url or load_config()["ftp_url"]).rstrip("/") + "/"
+    destination = destination.resolve()
+    considered = []
+    for name in candidate_names(year, quarter):
+        record = _probe(base_url + name)
+        record["filename"] = name
+        considered.append(record)
+    available = [item for item in considered if item["status"] == "available"]
+    if len(available) != 1:
+        summary = ", ".join(f"{x['filename']}: {x['reason']}" for x in considered)
+        raise RuntimeError(
+            f"expected exactly one available official archive for {year}-{quarter}; "
+            f"found {len(available)} ({summary})"
+        )
+    selected = available[0]
+    name, url = selected["filename"], selected["url"]
+    _validate_filename(name, year, quarter)
+    destination.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=".download-", dir=destination)
+    os.close(fd)
+    temp = Path(temporary)
+    response = None
+    try:
+        response = urlopen(Request(url, headers={"User-Agent": USER_AGENT}), timeout=120)
+        headers = dict(response.headers.items())
+        downloaded = 0
+        with temp.open("wb") as output:
+            while chunk := response.read(1024 * 1024):
+                downloaded += len(chunk)
+                if downloaded > MAX_SOURCE_BYTES:
+                    raise RuntimeError(f"source exceeds {MAX_SOURCE_BYTES} bytes")
+                output.write(chunk)
+        archive = destination / name
+        os.replace(temp, archive)
+    except Exception:
+        temp.unlink(missing_ok=True)
+        raise
+    finally:
+        if response is not None:
+            response.close()
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
+        ).strip()
+    except Exception:
+        commit = None
+    manifest = {
+        "schema_version": 1,
+        "publisher": "INDEC",
+        "dataset_family": "EPH",
+        "requested_year": year,
+        "requested_quarter": quarter,
+        "resolved_source_url": url,
+        "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
+        "transport": {
+            "scheme": urlparse(url).scheme,
+            "content_type": headers.get("Content-Type"),
+            "etag": headers.get("ETag"),
+            "last_modified": headers.get("Last-Modified"),
+        },
+        "original_filename": name,
+        "bytes": archive.stat().st_size,
+        "sha256": sha256(archive),
+        "retrieval_status": "success",
+        "candidate_selection": {
+            "rule": "exactly_one_HEAD_200",
+            "considered": considered,
+            "selected": url,
+        },
+        "tool_version": __import__("eph_extractor").__version__,
+        "git_commit": commit,
+    }
+    path = destination / "source-manifest.json"
+    path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return archive, path
