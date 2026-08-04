@@ -1,7 +1,6 @@
 # config.py
 
 import os
-import yaml
 from pathlib import Path
 
 def load_config(config_path: str = None) -> dict:
@@ -32,9 +31,15 @@ def load_config(config_path: str = None) -> dict:
     for path in filter(None, [config_path, str(pkg_settings)]):
         p = Path(path)
         if p.is_file():
-            loaded = yaml.safe_load(p.read_text(encoding='utf-8'))
-            if isinstance(loaded, dict):
-                config.update(loaded)
+            # Settings intentionally remain a flat scalar mapping, avoiding a
+            # runtime YAML dependency for offline fixture use.
+            loaded = {}
+            for line in p.read_text(encoding='utf-8').splitlines():
+                line = line.split('#', 1)[0].strip()
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    loaded[key.strip()] = value.strip().strip('"\'')
+            config.update(loaded)
 
     # Finalmente, permitir override por variables de entorno
     for key in config.keys():
