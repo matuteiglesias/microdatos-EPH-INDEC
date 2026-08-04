@@ -1,0 +1,40 @@
+# This file declares the repository boundary and its place in the GitHub estate.
+schema_version: 1
+id: publicdata.eph.acquire
+repository:
+  id: repo.microdatos-eph-indec
+  github: matuteiglesias/microdatos-EPH-INDEC
+domain: public-data
+system: publicdata.eph
+role: eph-acquisition-producer
+lifecycle: active
+authority:
+  status: proposed
+  owns:
+  - upstream EPH microdata acquisition and raw-format conversion
+  - versioned acquisition outputs and source provenance
+  does_not_own:
+  - derived harmonization
+  - modeling targets and features
+  - poverty estimates
+interfaces:
+  consumes: []
+  produces:
+  - artifact:publicdata.eph-microdata@1
+upstream: []
+downstream:
+- repo.eph-censo-aligner
+- repo.income-modeling-eph
+- repo.indice-pobreza-uba
+canonical_commands: []
+generated_paths:
+- data/
+verification:
+  status: metadata-only
+  last_verified: '2026-08-04'
+  command: null
+  unknowns:
+  - canonical acquisition command and data storage policy require local confirmation
+maintenance:
+  cadence: quarterly
+  next_review: '2026-11-01'
