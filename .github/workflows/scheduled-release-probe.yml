@@ -1,0 +1,117 @@
+name: Scheduled EPH release probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: Optional explicit year override
+        required: false
+        type: string
+      quarter:
+        description: Optional explicit quarter override (Q1..Q4)
+        required: false
+        type: string
+  schedule:
+    - cron: "17 9 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-eph-release-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install bounded extractor
+        run: python -m pip install -e .
+
+      - name: Verify offline invariants first
+        run: make check
+
+      - name: Resolve the quarter that should already be public
+        id: target
+        env:
+          MANUAL_YEAR: ${{ inputs.year }}
+          MANUAL_QUARTER: ${{ inputs.quarter }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import date, timedelta
+
+          manual_year = (os.environ.get("MANUAL_YEAR") or "").strip()
+          manual_quarter = (os.environ.get("MANUAL_QUARTER") or "").strip().upper()
+
+          if manual_year or manual_quarter:
+              if not manual_year or manual_quarter not in {"Q1", "Q2", "Q3", "Q4"}:
+                  raise SystemExit("Manual override requires year and quarter=Q1..Q4")
+              year = int(manual_year)
+              quarter = int(manual_quarter[1])
+          else:
+              today = date.today()
+              candidates = []
+              for year0 in range(today.year - 3, today.year + 1):
+                  for quarter0, end in {
+                      1: date(year0, 3, 31),
+                      2: date(year0, 6, 30),
+                      3: date(year0, 9, 30),
+                      4: date(year0, 12, 31),
+                  }.items():
+                      # Historical publication lag is roughly 130 days. Probe only a
+                      # quarter old enough that absence/ambiguity is operationally useful.
+                      if today >= end + timedelta(days=130):
+                          candidates.append((end, year0, quarter0))
+              if not candidates:
+                  raise SystemExit("No quarter is old enough for the 130-day publication probe")
+              _, year, quarter = max(candidates)
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+              fh.write(f"EPH_YEAR={year}\n")
+              fh.write(f"EPH_QUARTER=Q{quarter}\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"year={year}\n")
+              fh.write(f"quarter=Q{quarter}\n")
+          print(f"Resolved probe target: {year} Q{quarter}")
+          PY
+
+      - name: Retrieve and materialize exact quarter candidate
+        run: |
+          mkdir -p "$RUNNER_TEMP/eph-probe"
+          make probe YEAR="$EPH_YEAR" QUARTER="$EPH_QUARTER" OUT_DIR="$RUNNER_TEMP/eph-probe"
+
+      - name: Summarize candidate
+        if: always()
+        run: |
+          {
+            echo "## Scheduled EPH release probe"
+            echo
+            echo "Target: **${EPH_YEAR:-unresolved} ${EPH_QUARTER:-unresolved}**"
+            echo
+            echo "This workflow is deliberately a candidate/probe boundary. It does not write to the repository or silently promote a scientific release. A failed mature-quarter probe is actionable source/acquisition evidence."
+            echo
+            if [ -d "$RUNNER_TEMP/eph-probe" ]; then
+              echo '```text'
+              find "$RUNNER_TEMP/eph-probe" -maxdepth 3 -type f -printf '%P\n' | sort | head -100
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload exact candidate evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eph-${{ steps.target.outputs.year }}-${{ steps.target.outputs.quarter }}-candidate
+          path: ${{ runner.temp }}/eph-probe
+          if-no-files-found: error
+          retention-days: 14
