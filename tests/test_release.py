@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fixture_factory import create_fixtures
 
-from eph_extractor.downloader import candidate_names, retrieve
+from eph_extractor.downloader import candidate_names, candidate_specs, retrieve
 from eph_extractor.extractor import publish_release
 
 class QuietHandler(SimpleHTTPRequestHandler):
@@ -25,6 +25,13 @@ class ReleaseTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.fixture_temp.cleanup()
+
+    def _serve(self, served):
+        handler = lambda *args, **kwargs: QuietHandler(*args, directory=served, **kwargs)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        return server, thread
 
     def test_modern_nested_dbf_latin1_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -62,43 +69,56 @@ class ReleaseTests(unittest.TestCase):
                 publish_release(archive, out, 2026, "Q1")
             self.assertEqual(list(out.iterdir()), [])
 
-    def test_discovers_and_downloads_exactly_one_2026_q1_candidate(self):
+    def test_multiple_official_formats_prefer_text_candidate(self):
         with tempfile.TemporaryDirectory() as served, tempfile.TemporaryDirectory() as downloaded:
-            source_name = "EPH_usu_1_Trim_2026_txt.zip"
-            (Path(served) / source_name).write_bytes((self.fixtures / "modern_nested.zip").read_bytes())
-            handler = lambda *args, **kwargs: QuietHandler(*args, directory=served, **kwargs)
-            server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-            thread = threading.Thread(target=server.serve_forever, daemon=True)
-            thread.start()
+            for name in candidate_names(2026, "Q1"):
+                (Path(served) / name).write_bytes((self.fixtures / "modern_nested.zip").read_bytes())
+            server, thread = self._serve(served)
             try:
                 base_url = f"http://127.0.0.1:{server.server_port}/"
                 archive, manifest_path = retrieve(2026, "Q1", Path(downloaded), base_url)
             finally:
-                server.shutdown()
-                thread.join()
-                server.server_close()
-            self.assertEqual(archive.name, source_name)
+                server.shutdown(); thread.join(); server.server_close()
+            self.assertEqual(archive.name, "EPH_usu_1_Trim_2026_txt.zip")
             manifest = json.loads(manifest_path.read_text())
-            self.assertEqual(manifest["resolved_source_url"], base_url + source_name)
-            self.assertEqual(manifest["candidate_selection"]["rule"], "exactly_one_HEAD_200")
+            self.assertEqual(manifest["candidate_selection"]["rule"], "preferred_format_class_then_exactly_one")
+            self.assertEqual(manifest["candidate_selection"]["selected_format_class"], "text")
+            self.assertEqual(manifest["candidate_selection"]["format_preference"], ["text", "dbf", "generic"])
             self.assertEqual(len(manifest["candidate_selection"]["considered"]), 3)
 
-    def test_discovery_fails_closed_on_ambiguous_candidates(self):
+    def test_same_preference_class_remains_fail_closed(self):
         with tempfile.TemporaryDirectory() as served, tempfile.TemporaryDirectory() as downloaded:
-            for name in candidate_names(2026, "Q1")[:2]:
+            text_names = [name for name, kind in candidate_specs(2016, "Q2") if kind == "text"]
+            self.assertEqual(len(text_names), 2)
+            for name in text_names:
                 (Path(served) / name).write_bytes((self.fixtures / "modern_nested.zip").read_bytes())
-            handler = lambda *args, **kwargs: QuietHandler(*args, directory=served, **kwargs)
-            server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-            thread = threading.Thread(target=server.serve_forever, daemon=True)
-            thread.start()
+            server, thread = self._serve(served)
             try:
-                with self.assertRaisesRegex(RuntimeError, "found 2"):
-                    retrieve(2026, "Q1", Path(downloaded), f"http://127.0.0.1:{server.server_port}/")
+                with self.assertRaisesRegex(RuntimeError, "exactly one available text archive.*found 2"):
+                    retrieve(2016, "Q2", Path(downloaded), f"http://127.0.0.1:{server.server_port}/")
             finally:
-                server.shutdown()
-                thread.join()
-                server.server_close()
+                server.shutdown(); thread.join(); server.server_close()
             self.assertEqual(list(Path(downloaded).iterdir()), [])
+
+    def test_dbf_is_bounded_fallback_when_text_absent(self):
+        with tempfile.TemporaryDirectory() as served, tempfile.TemporaryDirectory() as downloaded:
+            dbf_name = next(name for name, kind in candidate_specs(2026, "Q1") if kind == "dbf")
+            generic_name = next(name for name, kind in candidate_specs(2026, "Q1") if kind == "generic")
+            for name in (dbf_name, generic_name):
+                (Path(served) / name).write_bytes((self.fixtures / "modern_nested.zip").read_bytes())
+            server, thread = self._serve(served)
+            try:
+                archive, manifest_path = retrieve(
+                    2026,
+                    "Q1",
+                    Path(downloaded),
+                    f"http://127.0.0.1:{server.server_port}/",
+                )
+            finally:
+                server.shutdown(); thread.join(); server.server_close()
+            self.assertEqual(archive.name, dbf_name)
+            manifest = json.loads(manifest_path.read_text())
+            self.assertEqual(manifest["candidate_selection"]["selected_format_class"], "dbf")
 
 
 if __name__ == "__main__":
