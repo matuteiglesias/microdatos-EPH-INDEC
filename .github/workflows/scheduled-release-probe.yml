@@ -1,6 +1,11 @@
 name: Scheduled EPH release probe
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/scheduled-release-probe.yml
   workflow_dispatch:
     inputs:
       year:
