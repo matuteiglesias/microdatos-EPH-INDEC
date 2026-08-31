@@ -1,6 +1,11 @@
 name: Scheduled EPH release probe
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/scheduled-release-probe.yml
   workflow_dispatch:
     inputs:
       year:
@@ -70,8 +75,6 @@ jobs:
                       3: date(year0, 9, 30),
                       4: date(year0, 12, 31),
                   }.items():
-                      # Historical publication lag is roughly 130 days. Probe only a
-                      # quarter old enough that absence/ambiguity is operationally useful.
                       if today >= end + timedelta(days=130):
                           candidates.append((end, year0, quarter0))
               if not candidates:
