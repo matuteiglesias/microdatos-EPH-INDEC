@@ -145,20 +145,17 @@ def retrieve(year: int, quarter: str, destination: Path, base_url: str | None = 
         ).strip()
     except Exception:
         commit = None
-    manifest = {
-        "schema_version": 1,
+
+    # source-manifest.json is deliberately stable for identical source bytes and
+    # extractor semantics. Volatile observation details belong to retrieval-run.json
+    # so a fresh runner cannot produce different durable bytes under the same release ID.
+    source_manifest = {
+        "schema_version": 2,
         "publisher": "INDEC",
         "dataset_family": "EPH",
         "requested_year": year,
         "requested_quarter": quarter,
         "resolved_source_url": url,
-        "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
-        "transport": {
-            "scheme": urlparse(url).scheme,
-            "content_type": headers.get("Content-Type"),
-            "etag": headers.get("ETag"),
-            "last_modified": headers.get("Last-Modified"),
-        },
         "original_filename": name,
         "bytes": archive.stat().st_size,
         "sha256": sha256(archive),
@@ -166,13 +163,30 @@ def retrieve(year: int, quarter: str, destination: Path, base_url: str | None = 
         "candidate_selection": {
             "rule": "preferred_format_class_then_exactly_one",
             "format_preference": list(FORMAT_PREFERENCE),
-            "considered": considered,
             "selected": url,
             "selected_format_class": selected["format_class"],
         },
         "tool_version": __import__("eph_extractor").__version__,
+    }
+    source_path = destination / "source-manifest.json"
+    source_path.write_text(json.dumps(source_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    retrieval_run = {
+        "schema_version": 1,
+        "source_manifest_sha256": sha256(source_path),
+        "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
+        "transport": {
+            "scheme": urlparse(url).scheme,
+            "content_type": headers.get("Content-Type"),
+            "etag": headers.get("ETag"),
+            "last_modified": headers.get("Last-Modified"),
+        },
+        "candidate_selection": {
+            "considered": considered,
+        },
         "git_commit": commit,
     }
-    path = destination / "source-manifest.json"
-    path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    return archive, path
+    (destination / "retrieval-run.json").write_text(
+        json.dumps(retrieval_run, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return archive, source_path
