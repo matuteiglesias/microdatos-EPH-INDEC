@@ -17,19 +17,36 @@ from .extractor import sha256
 
 USER_AGENT = "eph-extractor/1"
 MAX_SOURCE_BYTES = 512 * 1024 * 1024
+FORMAT_PREFERENCE = ("text", "dbf", "generic")
+
+
+def candidate_specs(year: int, quarter: str) -> list[tuple[str, str]]:
+    """Return bounded official filename variants annotated by transport class.
+
+    Different transport formats for the same quarter are not competing datasets.
+    Selection prefers text, then DBF, then the generic archive, while still
+    failing closed when more than one filename in the preferred available class
+    is simultaneously valid.
+    """
+    q, yy = quarter[-1], str(year)[-2:]
+    specs: list[tuple[str, str]] = [(f"EPH_usu_{q}_Trim_{year}_txt.zip", "text")]
+    if year == 2016:
+        ordinal = {"1": "1er", "2": "2do", "3": "3er", "4": "4to"}[q]
+        specs.append((f"EPH_usu_{ordinal}Trim_{year}_txt.zip", "text"))
+    if year == 2017:
+        specs.append((f"EPH_usu_{'1er' if q == '1' else q}_Trim_{year}_txt.zip", "text"))
+    specs.extend(
+        [
+            (f"t{q}{yy}_dbf.zip", "dbf"),
+            (f"EPH_usu_{q}_Trim_{year}.zip", "generic"),
+        ]
+    )
+    return list(dict.fromkeys(specs))
 
 
 def candidate_names(year: int, quarter: str) -> list[str]:
-    """Return every known filename for a period; no ordering implies preference."""
-    q, yy = quarter[-1], str(year)[-2:]
-    names = [f"EPH_usu_{q}_Trim_{year}_txt.zip"]
-    if year == 2016:
-        ordinal = {"1": "1er", "2": "2do", "3": "3er", "4": "4to"}[q]
-        names.append(f"EPH_usu_{ordinal}Trim_{year}_txt.zip")
-    if year == 2017:
-        names.append(f"EPH_usu_{'1er' if q == '1' else q}_Trim_{year}_txt.zip")
-    names.extend([f"t{q}{yy}_dbf.zip", f"EPH_usu_{q}_Trim_{year}.zip"])
-    return list(dict.fromkeys(names))
+    """Compatibility helper returning every bounded filename considered."""
+    return [name for name, _ in candidate_specs(year, quarter)]
 
 
 def _probe(url: str) -> tuple[dict, object | None]:
@@ -61,6 +78,29 @@ def _validate_filename(name: str, year: int, quarter: str) -> None:
         raise RuntimeError(f"selected filename does not identify {year}-{quarter}: {name}")
 
 
+def _select_candidate(considered: list[dict], year: int, quarter: str) -> dict:
+    for format_class in FORMAT_PREFERENCE:
+        available = [
+            item
+            for item in considered
+            if item["format_class"] == format_class and item["status"] == "available"
+        ]
+        if not available:
+            continue
+        if len(available) != 1:
+            summary = ", ".join(f"{x['filename']}: {x['reason']}" for x in available)
+            raise RuntimeError(
+                f"expected exactly one available {format_class} archive for {year}-{quarter}; "
+                f"found {len(available)} ({summary})"
+            )
+        return available[0]
+    summary = ", ".join(f"{x['filename']}: {x['reason']}" for x in considered)
+    raise RuntimeError(
+        f"no available official archive for {year}-{quarter} in governed format preference "
+        f"{FORMAT_PREFERENCE} ({summary})"
+    )
+
+
 def retrieve(year: int, quarter: str, destination: Path, base_url: str | None = None):
     quarter = quarter.upper()
     if quarter not in {"Q1", "Q2", "Q3", "Q4"}:
@@ -68,18 +108,12 @@ def retrieve(year: int, quarter: str, destination: Path, base_url: str | None = 
     base_url = (base_url or load_config()["ftp_url"]).rstrip("/") + "/"
     destination = destination.resolve()
     considered = []
-    for name in candidate_names(year, quarter):
+    for name, format_class in candidate_specs(year, quarter):
         record = _probe(base_url + name)
         record["filename"] = name
+        record["format_class"] = format_class
         considered.append(record)
-    available = [item for item in considered if item["status"] == "available"]
-    if len(available) != 1:
-        summary = ", ".join(f"{x['filename']}: {x['reason']}" for x in considered)
-        raise RuntimeError(
-            f"expected exactly one available official archive for {year}-{quarter}; "
-            f"found {len(available)} ({summary})"
-        )
-    selected = available[0]
+    selected = _select_candidate(considered, year, quarter)
     name, url = selected["filename"], selected["url"]
     _validate_filename(name, year, quarter)
     destination.mkdir(parents=True, exist_ok=True)
@@ -130,9 +164,11 @@ def retrieve(year: int, quarter: str, destination: Path, base_url: str | None = 
         "sha256": sha256(archive),
         "retrieval_status": "success",
         "candidate_selection": {
-            "rule": "exactly_one_HEAD_200",
+            "rule": "preferred_format_class_then_exactly_one",
+            "format_preference": list(FORMAT_PREFERENCE),
             "considered": considered,
             "selected": url,
+            "selected_format_class": selected["format_class"],
         },
         "tool_version": __import__("eph_extractor").__version__,
         "git_commit": commit,
