@@ -1,17 +1,6 @@
 name: Scheduled EPH release probe
 
 on:
-  # Temporary merge proof for the first durable EPH publication. Remove after
-  # one live release is verified; normal cadence remains Monday + UI.
-  push:
-    branches:
-      - master
-    paths:
-      - .github/workflows/scheduled-release-probe.yml
-      - eph_extractor/downloader.py
-      - eph_extractor/publication.py
-      - tests/test_publication.py
-      - tests/test_release.py
   workflow_dispatch:
     inputs:
       year:
