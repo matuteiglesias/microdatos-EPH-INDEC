@@ -1,6 +1,17 @@
 name: Scheduled EPH release probe
 
 on:
+  # Temporary merge proof for the first durable EPH publication. Remove after
+  # one live release is verified; normal cadence remains Monday + UI.
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/scheduled-release-probe.yml
+      - eph_extractor/downloader.py
+      - eph_extractor/publication.py
+      - tests/test_publication.py
+      - tests/test_release.py
   workflow_dispatch:
     inputs:
       year:
@@ -15,7 +26,7 @@ on:
     - cron: "17 9 * * 1"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: scheduled-eph-release-probe
@@ -92,6 +103,48 @@ jobs:
           mkdir -p "$RUNNER_TEMP/eph-probe"
           make probe YEAR="$EPH_YEAR" QUARTER="$EPH_QUARTER" OUT_DIR="$RUNNER_TEMP/eph-probe"
 
+      - name: Package deterministic durable candidate
+        run: |
+          release=$(find "$RUNNER_TEMP/eph-probe" -mindepth 1 -maxdepth 1 -type d ! -name .source | sort | tail -1)
+          test -n "$release"
+          python -m eph_extractor.publication \
+            "$release" \
+            --source-dir "$RUNNER_TEMP/eph-probe/.source" \
+            --output "$RUNNER_TEMP/eph-publication"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          discovery = json.loads((Path(os.environ["RUNNER_TEMP"]) / "eph-publication" / "discovery.json").read_text())
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+              fh.write(f"PUBLICATION_TAG={discovery['github_release']['tag']}\n")
+              fh.write(f"PUBLICATION_ASSET={discovery['github_release']['asset_name']}\n")
+              fh.write(f"PUBLICATION_RELEASE_ID={discovery['release_id']}\n")
+          PY
+
+      - name: Publish or verify immutable GitHub Release transport
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          asset="$RUNNER_TEMP/eph-publication/$PUBLICATION_ASSET"
+          discovery="$RUNNER_TEMP/eph-publication/discovery.json"
+          if gh release view "$PUBLICATION_TAG" >/dev/null 2>&1; then
+            mkdir -p "$RUNNER_TEMP/eph-existing-release"
+            gh release download "$PUBLICATION_TAG" \
+              -p "$PUBLICATION_ASSET" \
+              -p discovery.json \
+              -D "$RUNNER_TEMP/eph-existing-release"
+            cmp "$asset" "$RUNNER_TEMP/eph-existing-release/$PUBLICATION_ASSET"
+            cmp "$discovery" "$RUNNER_TEMP/eph-existing-release/discovery.json"
+            echo "Existing durable release matches byte-for-byte: $PUBLICATION_TAG"
+          else
+            gh release create "$PUBLICATION_TAG" "$asset" "$discovery" \
+              --prerelease \
+              --target "$GITHUB_SHA" \
+              --title "$PUBLICATION_RELEASE_ID (candidate)" \
+              --notes "Immutable candidate transport for publicdata.eph-microdata@1. Candidate publication is not downstream scientific approval."
+          fi
+
       - name: Summarize candidate
         if: always()
         run: |
@@ -100,20 +153,24 @@ jobs:
             echo
             echo "Target: **${EPH_YEAR:-unresolved} ${EPH_QUARTER:-unresolved}**"
             echo
-            echo "This workflow is deliberately a candidate/probe boundary. It does not write to the repository or silently promote a scientific release. A failed mature-quarter probe is actionable source/acquisition evidence."
+            echo "Successful exact-quarter materialization is published as a content-addressed candidate release. Stable source identity is separated from volatile retrieval-run evidence so an unchanged upstream archive can be verified byte-for-byte on rerun."
+            echo
+            echo "Candidate publication does not imply downstream scientific approval. Actions artifacts remain run evidence; the GitHub prerelease is the durable cross-repository transport."
             echo
             if [ -d "$RUNNER_TEMP/eph-probe" ]; then
               echo '```text'
-              find "$RUNNER_TEMP/eph-probe" -maxdepth 3 -type f -printf '%P\n' | sort | head -100
+              find "$RUNNER_TEMP/eph-probe" "$RUNNER_TEMP/eph-publication" -maxdepth 3 -type f -printf '%p\n' 2>/dev/null | sort | head -150
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload exact candidate evidence
-        if: success()
+      - name: Upload exact candidate and run evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eph-${{ steps.target.outputs.year }}-${{ steps.target.outputs.quarter }}-candidate
-          path: ${{ runner.temp }}/eph-probe
-          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/eph-probe
+            ${{ runner.temp }}/eph-publication
+          if-no-files-found: warn
           retention-days: 14

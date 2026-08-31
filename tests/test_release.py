@@ -81,10 +81,33 @@ class ReleaseTests(unittest.TestCase):
                 server.shutdown(); thread.join(); server.server_close()
             self.assertEqual(archive.name, "EPH_usu_1_Trim_2026_txt.zip")
             manifest = json.loads(manifest_path.read_text())
+            self.assertEqual(manifest["schema_version"], 2)
             self.assertEqual(manifest["candidate_selection"]["rule"], "preferred_format_class_then_exactly_one")
             self.assertEqual(manifest["candidate_selection"]["selected_format_class"], "text")
             self.assertEqual(manifest["candidate_selection"]["format_preference"], ["text", "dbf", "generic"])
-            self.assertEqual(len(manifest["candidate_selection"]["considered"]), 3)
+            self.assertNotIn("retrieved_at_utc", manifest)
+            self.assertNotIn("considered", manifest["candidate_selection"])
+            run = json.loads((Path(downloaded) / "retrieval-run.json").read_text())
+            self.assertEqual(len(run["candidate_selection"]["considered"]), 3)
+            self.assertTrue(run["retrieved_at_utc"])
+
+    def test_stable_source_manifest_is_independent_of_retrieval_run(self):
+        with tempfile.TemporaryDirectory() as served, tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            chosen = next(name for name, kind in candidate_specs(2026, "Q1") if kind == "text")
+            (Path(served) / chosen).write_bytes((self.fixtures / "modern_nested.zip").read_bytes())
+            server, thread = self._serve(served)
+            try:
+                base_url = f"http://127.0.0.1:{server.server_port}/"
+                _, first_manifest = retrieve(2026, "Q1", Path(first), base_url)
+                _, second_manifest = retrieve(2026, "Q1", Path(second), base_url)
+            finally:
+                server.shutdown(); thread.join(); server.server_close()
+            self.assertEqual(first_manifest.read_bytes(), second_manifest.read_bytes())
+            first_run = json.loads((Path(first) / "retrieval-run.json").read_text())
+            second_run = json.loads((Path(second) / "retrieval-run.json").read_text())
+            self.assertEqual(first_run["source_manifest_sha256"], second_run["source_manifest_sha256"])
+            self.assertIn("retrieved_at_utc", first_run)
+            self.assertIn("retrieved_at_utc", second_run)
 
     def test_same_preference_class_remains_fail_closed(self):
         with tempfile.TemporaryDirectory() as served, tempfile.TemporaryDirectory() as downloaded:
