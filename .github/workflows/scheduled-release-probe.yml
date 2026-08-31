@@ -37,8 +37,10 @@ jobs:
       - name: Install bounded extractor
         run: python -m pip install -e .
 
-      - name: Verify offline invariants first
-        run: make check
+      - name: Verify offline invariants and synthetic publication first
+        run: |
+          make check
+          make smoke
 
       - name: Resolve the quarter that should already be public
         id: target
