@@ -8,7 +8,7 @@ system: publicdata.eph
 role: eph-acquisition-producer
 lifecycle: active
 authority:
-  status: proven-local
+  status: proven-live
   owns:
   - upstream EPH microdata acquisition and raw-format conversion
   - versioned acquisition outputs and source provenance
@@ -26,11 +26,17 @@ canonical_commands:
 generated_paths:
 - external output root/eph-YEAR-qN-SOURCEHASH/
 verification:
-  status: offline-proven
-  last_verified: '2026-08-04'
+  status: live-durable-publication-proven
+  last_verified: '2026-08-31'
   command: make check && make smoke
+  evidence:
+  - scheduled live acquisition/materialization succeeded for 2026-Q1
+  - candidate-eph-2026-q1-beff9b8299d5 published as a durable GitHub prerelease
+  - deterministic publication asset and discovery envelope are checksum-bound
+  - volatile retrieval-run evidence is separated from stable source identity
   unknowns:
   - historical RAR and uncommon DBF variants are unsupported
+  - downstream scientific preprocessing and approval remain consumer-owned gates
 maintenance:
   cadence: quarterly
   next_review: '2026-11-01'
