@@ -12,5 +12,8 @@ dependencies = []
 [project.scripts]
 eph-extractor = "eph_extractor.cli:main"
 
+[tool.setuptools]
+packages = ["eph_extractor"]
+
 [tool.setuptools.package-data]
 eph_extractor = ["settings.yaml"]
