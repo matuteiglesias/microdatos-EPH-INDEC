@@ -12,7 +12,7 @@ from typing import Callable
 from .downloader import retrieve
 from .extractor import publish_release, sha256
 
-PERIOD_RE = re.compile(r"^(20\\d{2})-Q([1-4])$")
+PERIOD_RE = re.compile(r"^(20\d{2})-Q([1-4])$")
 BATCH_SCHEMA = "publicdata.eph-microdata-batch/v1"
 
 
