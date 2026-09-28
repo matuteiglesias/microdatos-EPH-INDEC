@@ -5,15 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "eph-extractor"
 version = "1.0.0"
-description = "Bounded, provenance-preserving EPH acquisition"
+description = "Bounded, provenance-preserving INDEC household-survey acquisition"
 requires-python = ">=3.9"
 dependencies = []
 
 [project.scripts]
 eph-extractor = "eph_extractor.cli:main"
+engho-extractor = "engho_extractor.cli:main"
 
 [tool.setuptools]
-packages = ["eph_extractor"]
+packages = ["eph_extractor", "engho_extractor"]
 
 [tool.setuptools.package-data]
 eph_extractor = ["settings.yaml"]
