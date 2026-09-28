@@ -1,5 +1,37 @@
-# EPH data storage policy
+# INDEC household-survey data storage policy
 
-Git contains source, documentation, reviewed manifests that do not expose sensitive transport metadata, and the text-only synthetic fixture generator. Binary ZIP and DBF fixtures are generated in temporary directories during checks and are never committed. A generated fixture should stay below 100 KiB; the complete generated fixture set should stay below 1 MiB. Full ZIP/RAR/DBF/CSV/Parquet microdata, releases, models, and temporary staging belong in ignored local or managed external storage.
+Git contains source code, documentation, reviewed small manifests/receipts, and text-only synthetic fixture generators. Raw or normalized respondent-level EPH/ENGHo microdata are not committed.
 
-Use an output root outside the checkout (for example `/tmp/eph-probe`). A release is one immutable `eph-YEAR-qN-HASH/` directory plus `output-manifest.json`; its `.source/` sibling contains the archive and source manifest. Manifests can be copied and committed after review without copying microdata. To remove an incomplete run, delete the selected output root. Failed extraction automatically removes its dot-prefixed staging directory and never promotes a release.
+Binary ZIP/DBF fixtures are generated in temporary directories during checks and are never committed. Full ZIP/RAR/DBF/CSV/TXT/Parquet microdata, releases, models, and temporary staging belong in ignored local or managed external storage.
+
+## EPH
+
+Use an output root outside the checkout, for example `/tmp/eph-probe`. One EPH release is an immutable `eph-YEAR-qN-HASH/` directory plus `output-manifest.json`; the acquisition source area contains the archive and stable source manifest. Failed extraction removes dot-prefixed staging and never promotes a release.
+
+## ENGHo 2017/18
+
+Use an output root outside the checkout, for example `/home/matias/data/engho-2017-18` or `/tmp/engho-2017-18`.
+
+A normal end-to-end layout is:
+
+```text
+engho-2017-18/
+  source/
+    engHo ZIPs
+    source-manifest.json
+    retrieval-run.json
+  releases/
+    engho-2017-2018-HASH/
+      tables/
+        households.txt
+        persons.txt
+        expenditures.txt
+        articles.txt
+        replicate_weights.txt
+      output-manifest.json
+  commissioning/
+    commissioning-receipt.json
+    commissioning-receipt.md
+```
+
+The source and normalized tables stay outside git. A compact reviewed commissioning receipt may be committed later because it contains identities, counts and schema hashes rather than respondent records.
