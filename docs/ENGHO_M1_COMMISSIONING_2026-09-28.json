@@ -1,0 +1,45 @@
+{
+  "schema": "indec-engho-m1-commissioning-review/v1",
+  "commissioned_on": "2026-09-28",
+  "repository": "matuteiglesias/microdatos-EPH-INDEC",
+  "producer_commit": "22f15527c1f504e924032df270b4e1d05777fc0f",
+  "artifact_type": "publicdata.indec-engho-microdata/v1",
+  "release_id": "engho-2017-2018-ff05578d65ae",
+  "status": "pass_with_explicit_warning",
+  "tables": {
+    "households": {"rows": 21547, "columns": 134},
+    "persons": {"rows": 68725, "columns": 158},
+    "expenditures": {"rows": 901804, "columns": 19},
+    "articles": {"rows": 1224, "columns": 10},
+    "replicate_weights": {"rows": 21547, "columns": 201}
+  },
+  "format": {
+    "delimiter": "|",
+    "source_encoding": "UTF-8-SIG",
+    "normalized_encoding": "UTF-8"
+  },
+  "checks": {
+    "required_table_roles_present": true,
+    "required_identity_fields_present": true,
+    "release_validator": "pass",
+    "deterministic_reextraction_same_release_id": true,
+    "deterministic_reextraction_identical_table_payloads": true,
+    "official_source_hashes_recorded_in_local_release": true,
+    "release_manifest_hash_recorded_in_local_receipt": true
+  },
+  "warning": {
+    "id": "persons_count_manual_mismatch",
+    "published_manual_rows": 68675,
+    "release_rows": 68725,
+    "difference": 50,
+    "adjudication": "accepted_with_warning",
+    "reason": "keys are unique; all source rows retained; no recoding or filtering applied"
+  },
+  "scientific_transformations_performed": false,
+  "raw_microdata_committed_to_git": false,
+  "downstream_science_authorized": false,
+  "notes": [
+    "This compact repository receipt intentionally does not duplicate respondent-level material.",
+    "Exact official source hashes and the exact release manifest hash remain in the immutable local release and commissioning receipt."
+  ]
+}
