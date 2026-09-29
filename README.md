@@ -60,4 +60,18 @@ The ENGHo source set is fixed by contract rather than discovered heuristically. 
 
 This repository does not select p29–p48, classify restaurants as food/non-food, construct expenditure shares or Engel coefficients, build CBA/CBT, apply EPH weights analytically, estimate welfare, or calculate poverty.
 
+### Real M1 commissioning
+
+The real governed ENGHo run produced immutable release:
+
+```text
+engho-2017-2018-ff05578d65ae
+```
+
+with households 21,547; persons 68,725; expenditures 901,804; articles 1,224; and replicate weights 21,547. Deterministic re-extraction reproduced the same release ID and table payloads.
+
+The only adjudicated warning is that the persons table has 50 more rows than the published manual commissioning target (68,725 vs 68,675). Source rows are unique and preserved; the custody layer does not delete observations to force a published count.
+
+See [`docs/ENGHO_M1_COMMISSIONING_2026-09-28.md`](docs/ENGHO_M1_COMMISSIONING_2026-09-28.md) for the durable compact receipt.
+
 See [`docs/ENGHO_2017_18_ACQUISITION.md`](docs/ENGHO_2017_18_ACQUISITION.md), [`docs/DATA_STORAGE.md`](docs/DATA_STORAGE.md), and the existing EPH acquisition characterization for detailed boundaries.
