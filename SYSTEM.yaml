@@ -33,10 +33,12 @@ generated_paths:
 - external output root/engho-2017-2018-HASH/
 verification:
   status: eph-live-engho-real-data-commissioned
-  last_verified: '2026-09-28'
+  last_verified: '2026-09-30'
   command: make check && make smoke
   evidence:
   - existing EPH scheduled live acquisition/materialization remains unchanged
+  - the EPH producer supplied the exact 37-quarter 2017-Q1..2026-Q1 parent family consumed by research.eph-longitudinal-analysis-frame/v1
+  - candidate validation/persona classification was hardened without altering source payload or analytical semantics
   - ENGHo fixed five-source contract, deterministic publication and synthetic negative-path tests are implemented
   - ENGHo real-data published-dimension commissioning is explicit and never fabricated in hosted CI
   - real M1 release engho-2017-2018-ff05578d65ae passed deterministic validation and re-extraction under producer commit 22f15527c1f504e924032df270b4e1d05777fc0f
