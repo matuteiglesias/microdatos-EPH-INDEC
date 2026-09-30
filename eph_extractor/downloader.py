@@ -60,6 +60,12 @@ def _probe(url: str) -> tuple[dict, object | None]:
             record["reason"] = f"HTTP {status}"
         elif length is not None and int(length) > MAX_SOURCE_BYTES:
             record["reason"] = f"Content-Length exceeds {MAX_SOURCE_BYTES} bytes"
+        elif str(response.headers.get("Content-Type", "")).lower().startswith("text/html"):
+            # INDEC occasionally returns an HTML error page with HTTP 200 for
+            # stale filename variants.  Treat that candidate as unavailable
+            # instead of allowing duplicate-candidate selection to fail or,
+            # worse, downloading non-archive bytes as a parent source.
+            record["reason"] = "HTTP 200 HTML response is not an archive"
         else:
             record.update(status="available", reason="HTTP HEAD 200", content_length=int(length) if length else None)
     except HTTPError as exc:

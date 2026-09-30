@@ -65,7 +65,12 @@ def _category(name: str) -> str:
     lowered = name.casefold()
     if "hogar" in lowered or lowered.startswith("hog_"):
         return "household"
-    if "individual" in lowered or "indiv" in lowered or lowered.startswith("ind_"):
+    if (
+        "individual" in lowered
+        or "indiv" in lowered
+        or "persona" in lowered
+        or lowered.startswith("ind_")
+    ):
         return "individual"
     return "other"
 
