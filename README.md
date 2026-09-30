@@ -23,6 +23,17 @@ eph-extractor fetch --year 2024 --quarter Q3 --out /tmp/eph-source
 
 The EPH release contract remains `publicdata.eph-microdata@1`. Outputs use immutable `eph-YEAR-qN-SOURCEHASH` directories and preserve the existing source/output provenance contract.
 
+### Longitudinal custody proof
+
+The quarterly EPH custody path has now been exercised as the exact upstream parent surface for the real 2017-Q1..2026-Q1 longitudinal analysis frame.
+
+- 37 exact quarterly `publicdata.eph-microdata@1` parents were assembled and pinned downstream.
+- Source-faithful candidate validation now distinguishes persona/hogar files without changing source payload semantics.
+- One official trailing empty header token and one historical filename-topology irregularity were handled at the consumer/intake boundary; the source releases themselves remain unchanged.
+- The resulting downstream L2 frame contains 1,869,620 person-period rows with exact parent hashes.
+
+This repository remains the custody/acquisition authority only: panel linkage, schema harmonization, monetary normalization and welfare modeling remain downstream.
+
 ## ENGHo 2017/18 path
 
 The ENGHo capability consumes the five explicit official INDEC public-use ZIPs:
