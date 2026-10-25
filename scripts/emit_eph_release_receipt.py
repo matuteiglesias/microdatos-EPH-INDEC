@@ -71,7 +71,7 @@ def verify(probe, publication, year, quarter, selection, manual_year, manual_qua
     output = read(output_path) if output_path else None
     if valid_id:
         found["release_id"] = release_id
-    if source and output:
+    if source:
         filename = source.get("original_filename")
         archive = (probe / ".source" / filename if isinstance(filename, str)
                    and filename == Path(filename).name and filename not in (".", "..") else None)
@@ -86,16 +86,21 @@ def verify(probe, publication, year, quarter, selection, manual_year, manual_qua
             source.get("requested_quarter") == quarter,
             goodhash(source.get("sha256")),
             archive_sha is not None and source.get("sha256") == archive_sha,
-            output.get("source_archive_sha256") == archive_sha,
-            output.get("source_manifest_sha256") == source_sha,
-            output.get("requested_year") == expected_year,
-            output.get("requested_quarter") == quarter,
-            output.get("release_id") == release_id,
         ))
         if checks["source"]:
-            found.update(source_archive_sha256=archive_sha, source_manifest_sha256=source_sha,
-                         output_manifest_sha256=sha(output_path))
-    if checks["source"] and discovery:
+            found.update(source_archive_sha256=archive_sha, source_manifest_sha256=source_sha)
+    # Extraction and publication are independent: valid official retrieval may
+    # survive a missing output manifest or failed package step.
+    output_ok = bool(checks["source"] and output and all((
+        output.get("source_archive_sha256") == found.get("source_archive_sha256"),
+        output.get("source_manifest_sha256") == found.get("source_manifest_sha256"),
+        output.get("requested_year") == expected_year,
+        output.get("requested_quarter") == quarter,
+        output.get("release_id") == release_id,
+    )))
+    if output_ok:
+        found["output_manifest_sha256"] = sha(output_path)
+    if output_ok and discovery:
         github = discovery.get("github_release")
         src = discovery.get("source")
         asset_name = github.get("asset_name") if isinstance(github, dict) else None
@@ -133,7 +138,7 @@ def verify(probe, publication, year, quarter, selection, manual_year, manual_qua
     )))
     if checks["transport"]:
         return "valid", checks, found
-    if (source and output and not checks["source"]) or (discovery and not checks["package"]) or transport:
+    if (source and not checks["source"]) or (output and not output_ok) or (discovery and not checks["package"]) or transport:
         return "invalid", checks, found
     return ("partial" if source or output or discovery else "missing"), checks, found
 

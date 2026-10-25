@@ -145,6 +145,19 @@ class ReceiptTests(unittest.TestCase):
         self.assertEqual(receipt["result"]["execution_state"], "failed")
         self.assertIsNone(receipt["outputs"][0]["ref"])
 
+    def test_packaging_missing_after_verified_retrieval(self):
+        self.prepare_candidate()
+        (self.pub / "discovery.json").unlink()
+        (self.pub / "transport-verified.json").unlink()
+        self.args.step_package = "failure"
+        self.args.step_publish = "skipped"
+        self.args.job_status = "failure"
+        receipt = make_receipt(self.args)
+        self.assertEqual(receipt["outputs"][0]["state"], "partial")
+        self.assertEqual(receipt["stages"]["probe"], "success")
+        self.assertEqual(receipt["stages"]["package"], "failed")
+        self.assertEqual(receipt["result"]["artifact_state"], "degraded")
+
     def test_missing_unknown_source_and_early_failure(self):
         self.args.year, self.args.quarter, self.args.selection = "", "", ""
         self.args.step_checks = "failure"
