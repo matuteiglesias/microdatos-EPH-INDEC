@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write  # Restricted to the metadata exporter by the GCP OIDC condition
 
 concurrency:
   group: scheduled-eph-release-probe
@@ -29,6 +30,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Capture producer start time
+        run: echo "PRODUCER_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -38,6 +42,7 @@ jobs:
         run: python -m pip install -e .
 
       - name: Verify offline invariants and synthetic publication first
+        id: checks
         run: |
           make check
           make smoke
@@ -84,15 +89,18 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"year={year}\n")
               fh.write(f"quarter=Q{quarter}\n")
+              fh.write(f"selection={'manual_override' if manual_year else 'lag_130d'}\n")
           print(f"Resolved probe target: {year} Q{quarter}")
           PY
 
       - name: Retrieve and materialize exact quarter candidate
+        id: probe
         run: |
           mkdir -p "$RUNNER_TEMP/eph-probe"
           make probe YEAR="$EPH_YEAR" QUARTER="$EPH_QUARTER" OUT_DIR="$RUNNER_TEMP/eph-probe"
 
       - name: Package deterministic durable candidate
+        id: package
         run: |
           release=$(find "$RUNNER_TEMP/eph-probe" -mindepth 1 -maxdepth 1 -type d ! -name .source | sort | tail -1)
           test -n "$release"
@@ -111,28 +119,123 @@ jobs:
           PY
 
       - name: Publish or verify immutable GitHub Release transport
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -eu
+          set -euo pipefail
           asset="$RUNNER_TEMP/eph-publication/$PUBLICATION_ASSET"
           discovery="$RUNNER_TEMP/eph-publication/discovery.json"
-          if gh release view "$PUBLICATION_TAG" >/dev/null 2>&1; then
-            mkdir -p "$RUNNER_TEMP/eph-existing-release"
-            gh release download "$PUBLICATION_TAG" \
-              -p "$PUBLICATION_ASSET" \
-              -p discovery.json \
-              -D "$RUNNER_TEMP/eph-existing-release"
-            cmp "$asset" "$RUNNER_TEMP/eph-existing-release/$PUBLICATION_ASSET"
-            cmp "$discovery" "$RUNNER_TEMP/eph-existing-release/discovery.json"
-            echo "Existing durable release matches byte-for-byte: $PUBLICATION_TAG"
-          else
+          if ! gh release view "$PUBLICATION_TAG" >/dev/null 2>&1; then
             gh release create "$PUBLICATION_TAG" "$asset" "$discovery" \
-              --prerelease \
-              --target "$GITHUB_SHA" \
+              --prerelease --target "$GITHUB_SHA" \
               --title "$PUBLICATION_RELEASE_ID (candidate)" \
               --notes "Immutable candidate transport for publicdata.eph-microdata@1. Candidate publication is not downstream scientific approval."
           fi
+          # Newly created and pre-existing tags use the exact same remote proof.
+          test "$(gh release view "$PUBLICATION_TAG" --json isPrerelease --jq '.isPrerelease')" = true
+          mkdir -p "$RUNNER_TEMP/eph-verified-download"
+          gh release download "$PUBLICATION_TAG" -p "$PUBLICATION_ASSET" -p discovery.json \
+            -D "$RUNNER_TEMP/eph-verified-download"
+          cmp "$asset" "$RUNNER_TEMP/eph-verified-download/$PUBLICATION_ASSET"
+          cmp "$discovery" "$RUNNER_TEMP/eph-verified-download/discovery.json"
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "eph-publication"
+          doc = json.loads((root / "discovery.json").read_text())
+          asset_path = root / doc["github_release"]["asset_name"]
+          def digest(p):
+              h = hashlib.sha256()
+              with p.open("rb") as fp:
+                  for chunk in iter(lambda: fp.read(1024 * 1024), b""):
+                      h.update(chunk)
+              return h.hexdigest()
+          attestation = {
+              "schema": "eph-candidate-transport-verification/v1",
+              "status": "verified", "verification": "github_download_cmp",
+              "prerelease": True, "release_id": doc["release_id"],
+              "tag": doc["github_release"]["tag"],
+              "asset_sha256": digest(asset_path),
+              "discovery_sha256": digest(root / "discovery.json"),
+          }
+          (root / "transport-verified.json").write_text(json.dumps(attestation, sort_keys=True, indent=2) + "\n")
+          PY
+
+      - name: Emit semantic EPH receipt (even on partial runs)
+        id: eph_receipt
+        if: always()
+        env:
+          RUN_ID: ${{ github.run_id }}
+          ATTEMPT: ${{ github.run_attempt }}
+          EVENT_NAME: ${{ github.event_name }}
+          JOB_STATE: ${{ job.status }}
+          TARGET_YEAR: ${{ steps.target.outputs.year }}
+          TARGET_QUARTER: ${{ steps.target.outputs.quarter }}
+          TARGET_SELECTION: ${{ steps.target.outputs.selection }}
+          MANUAL_YEAR: ${{ inputs.year }}
+          MANUAL_QUARTER: ${{ inputs.quarter }}
+          CHECKS_STATE: ${{ steps.checks.outcome }}
+          TARGET_STATE: ${{ steps.target.outcome }}
+          PROBE_STATE: ${{ steps.probe.outcome }}
+          PACKAGE_STATE: ${{ steps.package.outcome }}
+          PUBLISH_STATE: ${{ steps.publish.outcome }}
+        run: |
+          started="${PRODUCER_STARTED_AT:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+          mkdir -p "$RUNNER_TEMP/eph-receipt"
+          python3 scripts/emit_eph_release_receipt.py \
+            --scheduler-run-id "$RUN_ID" --run-attempt "$ATTEMPT" \
+            --event-name "$EVENT_NAME" --job-status "$JOB_STATE" \
+            --started-at "$started" --finished-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --year "$TARGET_YEAR" --quarter "$TARGET_QUARTER" --selection "$TARGET_SELECTION" \
+            --manual-year "$MANUAL_YEAR" --manual-quarter "$MANUAL_QUARTER" \
+            --step-checks "$CHECKS_STATE" --step-target "$TARGET_STATE" \
+            --step-probe "$PROBE_STATE" --step-package "$PACKAGE_STATE" --step-publish "$PUBLISH_STATE" \
+            --probe-dir "$RUNNER_TEMP/eph-probe" --publication-dir "$RUNNER_TEMP/eph-publication" \
+            --output "$RUNNER_TEMP/eph-receipt/producer-run-receipt.json"
+
+      - name: Authenticate EPH metadata exporter with OIDC
+        id: gcp_auth
+        if: always() && steps.eph_receipt.outcome == 'success' && github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        continue-on-error: true
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: estate-observability-510700
+          workload_identity_provider: projects/456183330588/locations/global/workloadIdentityPools/estate-producer-github/providers/eph-release-probe-master-oidc
+          service_account: estate-eph-receipt-writer@estate-observability-510700.iam.gserviceaccount.com
+
+      - name: Export semantic receipt to dedicated Cloud Logging
+        id: gcp_export
+        if: always() && steps.eph_receipt.outcome == 'success' && steps.gcp_auth.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python -m pip install 'google-auth>=2.30,<3' 'requests>=2.31,<3'
+          python3 scripts/export_eph_release_gcp.py \
+            --receipt "$RUNNER_TEMP/eph-receipt/producer-run-receipt.json" \
+            --scheduler-run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --write
+
+      - name: Summarize telemetry separately from EPH candidate validity
+        if: always()
+        env:
+          RECEIPT_STATUS: ${{ steps.eph_receipt.outcome }}
+          AUTH_STATUS: ${{ steps.gcp_auth.outcome }}
+          EXPORT_STATUS: ${{ steps.gcp_export.outcome }}
+        run: |
+          if [ "$EXPORT_STATUS" = success ]; then
+            echo "Canonical EPH receipt exported to dedicated Cloud Logging." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "EPH receipt transport: receipt=$RECEIPT_STATUS, auth=$AUTH_STATUS, export=$EXPORT_STATUS. Candidate scientific status is unchanged." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::EPH receipt telemetry unavailable; science/publication status is unchanged."
+          fi
+
+      - name: Upload recoverable semantic receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eph-producer-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/eph-receipt/producer-run-receipt.json
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Summarize candidate
         if: always()
